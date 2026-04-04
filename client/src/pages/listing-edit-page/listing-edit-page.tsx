@@ -1,25 +1,23 @@
-import { Button, Loader, Select, TextInput, Textarea } from '@mantine/core';
+import { Button, Popover, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconArrowLeft } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { clearEditDraft } from '../../features/listing-edit/lib/clear-edit-draft';
+import { getEditDefaultValues } from '../../features/listing-edit/lib/get-edit-default-values';
+import { getEditDraftKey } from '../../features/listing-edit/lib/get-edit-draft-key';
+import { loadEditDraft } from '../../features/listing-edit/lib/load-edit-draft';
+import { mapFormValuesToRequest } from '../../features/listing-edit/lib/map-form-values-to-request';
+import { saveEditDraft } from '../../features/listing-edit/lib/save-edit-draft';
+import { listingEditSchema } from '../../features/listing-edit/model/listing-edit.schema';
+import type { ListingEditFormValues } from '../../features/listing-edit/model/listing-edit.types';
 import { getItemById, putItemById } from '../../shared/api/items.api';
 import { getErrorMessage } from '../../shared/lib/get-error-message';
 import PageLayout from '../../shared/ui/page-layout/page-layout';
-import { getEditDefaultValues } from '../../features/listing-edit/lib/get-edit-default-values';
-import { mapFormValuesToRequest } from '../../features/listing-edit/lib/map-form-values-to-request';
-import { listingEditSchema } from '../../features/listing-edit/model/listing-edit.schema';
-import type { ListingEditFormValues } from '../../features/listing-edit/model/listing-edit.types';
 import styles from './listing-edit-page.module.scss';
-
-import { clearEditDraft } from '../../features/listing-edit/lib/clear-edit-draft';
-import { getEditDraftKey } from '../../features/listing-edit/lib/get-edit-draft-key';
-import { loadEditDraft } from '../../features/listing-edit/lib/load-edit-draft';
-import { saveEditDraft } from '../../features/listing-edit/lib/save-edit-draft';
 
 const categoryOptions = [
   { value: 'auto', label: 'Авто' },
@@ -81,6 +79,32 @@ const isEmptyValue = (value: unknown) => {
   return value === undefined || value === null;
 };
 
+const generateDescriptionSuggestion = async (values: ListingEditFormValues) => {
+  await new Promise((resolve) => window.setTimeout(resolve, 900));
+
+  const categoryLabelMap = {
+    auto: 'автомобиля',
+    real_estate: 'объекта недвижимости',
+    electronics: 'товара',
+  } as const;
+
+  return `${values.title} — отличный вариант для тех, кто ищет качественное предложение в категории ${
+    categoryLabelMap[values.category]
+  }. Объявление можно дополнить ключевыми характеристиками и преимуществами, чтобы оно выглядело привлекательнее для покупателей.`;
+};
+
+const generatePriceSuggestion = async (values: ListingEditFormValues) => {
+  await new Promise((resolve) => window.setTimeout(resolve, 800));
+
+  const currentPrice = Number(values.price || 0);
+
+  if (!currentPrice) {
+    return '100000';
+  }
+
+  return String(Math.round(currentPrice * 1.05));
+};
+
 const ListingEditPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -88,10 +112,15 @@ const ListingEditPage = () => {
 
   const itemId = Number(id);
   const isValidItemId = Number.isFinite(itemId);
-
   const draftKey = isValidItemId ? getEditDraftKey(itemId) : '';
-
   const draftWasHandledRef = useRef(false);
+
+  const [descriptionSuggestion, setDescriptionSuggestion] = useState<string | null>(null);
+  const [priceSuggestion, setPriceSuggestion] = useState<string | null>(null);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingPrice, setIsGeneratingPrice] = useState(false);
+  const [isPricePopoverOpened, setIsPricePopoverOpened] = useState(false);
+  const [isDescriptionPopoverOpened, setIsDescriptionPopoverOpened] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['item-edit', itemId],
@@ -129,11 +158,33 @@ const ListingEditPage = () => {
     register,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { errors, touchedFields, isValid },
   } = useForm<ListingEditFormValues>({
     resolver: zodResolver(listingEditSchema),
     defaultValues,
     mode: 'onBlur',
+    reValidateMode: 'onChange',
+  });
+
+  const selectedCategory = useWatch({
+    control,
+    name: 'category',
+  });
+
+  const descriptionValue = useWatch({
+    control,
+    name: 'description',
+  });
+
+  const paramsValues = useWatch({
+    control,
+    name: 'params',
+  });
+
+  const formValues = useWatch({
+    control,
   });
 
   useEffect(() => {
@@ -159,30 +210,9 @@ const ListingEditPage = () => {
     draftWasHandledRef.current = true;
   }, [data, draftKey, reset]);
 
-  const selectedCategory = useWatch({
-    control,
-    name: 'category',
-  });
-
-  const descriptionValue = useWatch({
-    control,
-    name: 'description',
-  });
-
-  const paramsValues = useWatch({
-    control,
-    name: 'params',
-  });
-
-  const formValues = useWatch({
-    control,
-  });
-
   useEffect(() => {
     if (!draftKey || !formValues) return;
     if (isLoading || !data) return;
-
-    console.log('Fetched item data for editing:', formValues);
 
     const timeoutId = window.setTimeout(() => {
       saveEditDraft(draftKey, formValues as ListingEditFormValues);
@@ -213,6 +243,58 @@ const ListingEditPage = () => {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    try {
+      setIsGeneratingDescription(true);
+
+      const values = getValues();
+      const suggestion = await generateDescriptionSuggestion(values);
+
+      setDescriptionSuggestion(suggestion);
+      setIsDescriptionPopoverOpened(true);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const handleApplyDescription = () => {
+    if (!descriptionSuggestion) return;
+
+    setValue('description', descriptionSuggestion, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setDescriptionSuggestion(null);
+    setIsDescriptionPopoverOpened(false);
+  };
+
+  const handleGeneratePrice = async () => {
+    try {
+      setIsGeneratingPrice(true);
+
+      const values = getValues();
+      const suggestion = await generatePriceSuggestion(values);
+
+      setPriceSuggestion(suggestion);
+      setIsPricePopoverOpened(true);
+    } finally {
+      setIsGeneratingPrice(false);
+    }
+  };
+
+  const handleApplyPrice = () => {
+    if (!priceSuggestion) return;
+
+    setValue('price', priceSuggestion, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    setPriceSuggestion(null);
+    setIsPricePopoverOpened(false);
+  };
+
   const updateMutation = useMutation({
     mutationFn: (values: ListingEditFormValues) =>
       putItemById(itemId, mapFormValuesToRequest(values)),
@@ -235,8 +317,8 @@ const ListingEditPage = () => {
       });
 
       notifications.show({
-        title: 'Успешно',
-        message: 'Объявление сохранено',
+        title: 'Изменения сохранены',
+        message: 'Объявление успешно обновлено',
         color: 'green',
       });
 
@@ -305,8 +387,7 @@ const ListingEditPage = () => {
         <div className={styles.container}>
           <div className={styles.backLinkWrapper}>
             <Link to={`/ads/${itemId}`} className={styles.backLink}>
-              <IconArrowLeft size={18} />
-              <span>К объявлению</span>
+              К объявлению
             </Link>
           </div>
 
@@ -314,290 +395,380 @@ const ListingEditPage = () => {
             <h1 className={styles.title}>Редактирование объявления</h1>
           </header>
 
-          <div className={styles.content}>
-            <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-              <div className={styles.grid}>
-                <div className={styles.leftColumn}>
-                  <div className={styles.field}>
-                    <label className={styles.label}>
-                      Категория <span className={styles.required}>*</span>
-                    </label>
+          <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+            <div className={styles.grid}>
+              <div className={styles.leftColumn}>
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    Категория <span className={styles.required}>*</span>
+                  </label>
 
+                  <Controller
+                    control={control}
+                    name="category"
+                    render={({ field }) => (
+                      <Select
+                        data={categoryOptions}
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        error={touchedFields.category ? errors.category?.message : undefined}
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    Название <span className={styles.required}>*</span>
+                  </label>
+                  <TextInput
+                    {...register('title')}
+                    error={touchedFields.title ? errors.title?.message : undefined}
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    Цена <span className={styles.required}>*</span>
+                  </label>
+
+                  <div className={styles.inlineFieldRow}>
+                    <div className={styles.inlineFieldInput}>
+                      <TextInput
+                        {...register('price')}
+                        inputMode="numeric"
+                        error={touchedFields.price ? errors.price?.message : undefined}
+                      />
+                    </div>
+
+                    <Popover
+                      opened={isPricePopoverOpened}
+                      onChange={setIsPricePopoverOpened}
+                      position="top-start"
+                      withArrow
+                      shadow="md"
+                      radius="sm"
+                      width={360}
+                    >
+                      <Popover.Target>
+                        <Button
+                          type="button"
+                          variant="light"
+                          onClick={handleGeneratePrice}
+                          loading={isGeneratingPrice}
+                          loaderProps={{ size: 48 }}
+                          className={styles.aiButton}
+                        >
+                          {priceSuggestion ? 'Повторить запрос' : 'Узнать рыночную цену'}
+                        </Button>
+                      </Popover.Target>
+
+                      <Popover.Dropdown className={styles.aiPopover}>
+                        <div className={styles.aiPopoverContent}>
+                          <p className={styles.aiSuggestionTitle}>Ответ AI:</p>
+                          <p className={styles.aiSuggestionText}>
+                            {priceSuggestion
+                              ? `${Number(priceSuggestion).toLocaleString('ru-RU')} ₽`
+                              : 'Нет данных для отображения.'}
+                          </p>
+
+                          <div className={styles.aiSuggestionActions}>
+                            <Button type="button" size="xs" onClick={handleApplyPrice}>
+                              Применить
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="default"
+                              onClick={() => setIsPricePopoverOpened(false)}
+                            >
+                              Закрыть
+                            </Button>
+                          </div>
+                        </div>
+                      </Popover.Dropdown>
+                    </Popover>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.categoryBlock}>
+              <h2 className={styles.sectionTitle}>Характеристики</h2>
+
+              {selectedCategory === 'auto' && (
+                <div className={styles.paramsGrid}>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('brand') || undefined}
+                  >
+                    <TextInput label="Бренд" {...register('params.brand')} />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('model') || undefined}
+                  >
+                    <TextInput label="Модель" {...register('params.model')} />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('yearOfManufacture') || undefined}
+                  >
+                    <TextInput
+                      label="Год выпуска"
+                      {...register('params.yearOfManufacture')}
+                      error={
+                        touchedFields.params?.yearOfManufacture
+                          ? errors.params?.yearOfManufacture?.message
+                          : undefined
+                      }
+                    />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('transmission') || undefined}
+                  >
                     <Controller
                       control={control}
-                      name="category"
+                      name="params.transmission"
                       render={({ field }) => (
                         <Select
-                          data={categoryOptions}
+                          label="Коробка передач"
+                          data={autoTransmissionOptions}
                           value={field.value}
-                          onChange={(value) => field.onChange(value)}
-                          error={touchedFields.category ? errors.category?.message : undefined}
+                          onChange={(value) => field.onChange(value ?? '')}
                         />
                       )}
                     />
                   </div>
 
-                  <div className={styles.field}>
-                    <label className={styles.label}>
-                      Название <span className={styles.required}>*</span>
-                    </label>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('mileage') || undefined}
+                  >
                     <TextInput
-                      {...register('title')}
-                      error={touchedFields.title ? errors.title?.message : undefined}
+                      label="Пробег"
+                      {...register('params.mileage')}
+                      error={
+                        touchedFields.params?.mileage ? errors.params?.mileage?.message : undefined
+                      }
                     />
                   </div>
 
-                  <div className={styles.field}>
-                    <label className={styles.label}>
-                      Цена <span className={styles.required}>*</span>
-                    </label>
-
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('enginePower') || undefined}
+                  >
                     <TextInput
-                      {...register('price')}
-                      inputMode="numeric"
-                      error={touchedFields.price ? errors.price?.message : undefined}
+                      label="Мощность двигателя"
+                      {...register('params.enginePower')}
+                      error={
+                        touchedFields.params?.enginePower
+                          ? errors.params?.enginePower?.message
+                          : undefined
+                      }
                     />
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className={styles.divider} />
-
-              <div className={styles.categoryBlock}>
-                <h2 className={styles.sectionTitle}>Характеристики</h2>
-
-                {selectedCategory === 'auto' && (
-                  <div className={styles.paramsGrid}>
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('brand') || undefined}
-                    >
-                      <TextInput label="Бренд" {...register('params.brand')} />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('model') || undefined}
-                    >
-                      <TextInput label="Модель" {...register('params.model')} />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('yearOfManufacture') || undefined}
-                    >
-                      <TextInput
-                        label="Год выпуска"
-                        {...register('params.yearOfManufacture')}
-                        error={
-                          touchedFields.params?.yearOfManufacture
-                            ? errors.params?.yearOfManufacture?.message
-                            : undefined
-                        }
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('transmission') || undefined}
-                    >
-                      <Controller
-                        control={control}
-                        name="params.transmission"
-                        render={({ field }) => (
-                          <Select
-                            label="Коробка передач"
-                            data={autoTransmissionOptions}
-                            value={field.value}
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('mileage') || undefined}
-                    >
-                      <TextInput
-                        label="Пробег"
-                        {...register('params.mileage')}
-                        error={
-                          touchedFields.params?.mileage
-                            ? errors.params?.mileage?.message
-                            : undefined
-                        }
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('enginePower') || undefined}
-                    >
-                      <TextInput
-                        label="Мощность двигателя"
-                        {...register('params.enginePower')}
-                        error={
-                          touchedFields.params?.enginePower
-                            ? errors.params?.enginePower?.message
-                            : undefined
-                        }
-                      />
-                    </div>
+              {selectedCategory === 'real_estate' && (
+                <div className={styles.paramsGrid}>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('type') || undefined}
+                  >
+                    <Controller
+                      control={control}
+                      name="params.type"
+                      render={({ field }) => (
+                        <Select
+                          label="Тип"
+                          data={realEstateTypeOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange(value ?? '')}
+                        />
+                      )}
+                    />
                   </div>
-                )}
 
-                {selectedCategory === 'real_estate' && (
-                  <div className={styles.paramsGrid}>
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('type') || undefined}
-                    >
-                      <Controller
-                        control={control}
-                        name="params.type"
-                        render={({ field }) => (
-                          <Select
-                            label="Тип"
-                            data={realEstateTypeOptions}
-                            value={field.value}
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('address') || undefined}
-                    >
-                      <TextInput label="Адрес" {...register('params.address')} />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('area') || undefined}
-                    >
-                      <TextInput
-                        label="Площадь"
-                        {...register('params.area')}
-                        error={
-                          touchedFields.params?.area ? errors.params?.area?.message : undefined
-                        }
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('floor') || undefined}
-                    >
-                      <TextInput
-                        label="Этаж"
-                        {...register('params.floor')}
-                        error={
-                          touchedFields.params?.floor ? errors.params?.floor?.message : undefined
-                        }
-                      />
-                    </div>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('address') || undefined}
+                  >
+                    <TextInput label="Адрес" {...register('params.address')} />
                   </div>
-                )}
 
-                {selectedCategory === 'electronics' && (
-                  <div className={styles.paramsGrid}>
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('type') || undefined}
-                    >
-                      <Controller
-                        control={control}
-                        name="params.type"
-                        render={({ field }) => (
-                          <Select
-                            label="Тип"
-                            data={electronicsTypeOptions}
-                            value={field.value}
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('brand') || undefined}
-                    >
-                      <TextInput label="Бренд" {...register('params.brand')} />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('model') || undefined}
-                    >
-                      <TextInput label="Модель" {...register('params.model')} />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('condition') || undefined}
-                    >
-                      <Controller
-                        control={control}
-                        name="params.condition"
-                        render={({ field }) => (
-                          <Select
-                            label="Состояние"
-                            data={electronicsConditionOptions}
-                            value={field.value}
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div
-                      className={styles.paramField}
-                      data-warning={isWarningField('color') || undefined}
-                    >
-                      <TextInput label="Цвет" {...register('params.color')} />
-                    </div>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('area') || undefined}
+                  >
+                    <TextInput
+                      label="Площадь"
+                      {...register('params.area')}
+                      error={touchedFields.params?.area ? errors.params?.area?.message : undefined}
+                    />
                   </div>
-                )}
-              </div>
 
-              <div className={styles.divider} />
-
-              <div className={styles.descriptionBlock}>
-                <div className={styles.descriptionHeader}>
-                  <label className={styles.label}>Описание</label>
-                  <span className={styles.counter}>{descriptionValue?.length ?? 0}/1000</span>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('floor') || undefined}
+                  >
+                    <TextInput
+                      label="Этаж"
+                      {...register('params.floor')}
+                      error={
+                        touchedFields.params?.floor ? errors.params?.floor?.message : undefined
+                      }
+                    />
+                  </div>
                 </div>
+              )}
 
-                <Textarea
-                  {...register('description')}
-                  resize="vertical"
-                  maxLength={1000}
-                  error={touchedFields.description ? errors.description?.message : undefined}
-                />
-              </div>
+              {selectedCategory === 'electronics' && (
+                <div className={styles.paramsGrid}>
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('type') || undefined}
+                  >
+                    <Controller
+                      control={control}
+                      name="params.type"
+                      render={({ field }) => (
+                        <Select
+                          label="Тип"
+                          data={electronicsTypeOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange(value ?? '')}
+                        />
+                      )}
+                    />
+                  </div>
 
-              <div className={styles.actions}>
-                <Button
-                  type="submit"
-                  loading={updateMutation.isPending}
-                  disabled={!isValid || updateMutation.isPending}
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('brand') || undefined}
+                  >
+                    <TextInput label="Бренд" {...register('params.brand')} />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('model') || undefined}
+                  >
+                    <TextInput label="Модель" {...register('params.model')} />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('condition') || undefined}
+                  >
+                    <Controller
+                      control={control}
+                      name="params.condition"
+                      render={({ field }) => (
+                        <Select
+                          label="Состояние"
+                          data={electronicsConditionOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange(value ?? '')}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div
+                    className={styles.paramField}
+                    data-warning={isWarningField('color') || undefined}
+                  >
+                    <TextInput label="Цвет" {...register('params.color')} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.descriptionBlock}>
+              <label className={styles.label}>Описание</label>
+
+              <Textarea
+                {...register('description')}
+                resize="vertical"
+                maxLength={1000}
+                error={touchedFields.description ? errors.description?.message : undefined}
+              />
+
+              <div className={styles.descriptionFooter}>
+                <Popover
+                  opened={isDescriptionPopoverOpened}
+                  onChange={setIsDescriptionPopoverOpened}
+                  position="top-start"
+                  withArrow
+                  shadow="md"
+                  width={420}
                 >
-                  Сохранить
-                </Button>
+                  <Popover.Target>
+                    <Button
+                      type="button"
+                      variant="light"
+                      size="xs"
+                      onClick={handleGenerateDescription}
+                      loading={isGeneratingDescription}
+                      loaderProps={{ size: 48 }}
+                    >
+                      {descriptionValue?.trim() ? 'Улучшить описание' : 'Придумать описание'}
+                    </Button>
+                  </Popover.Target>
 
-                <Button component={Link} to={`/ads/${itemId}`} variant="default">
-                  Отменить
-                </Button>
+                  <Popover.Dropdown className={styles.aiPopover}>
+                    <div className={styles.aiPopoverContent}>
+                      <p className={styles.aiSuggestionTitle}>Ответ AI:</p>
+                      <p className={styles.aiSuggestionText}>
+                        {descriptionSuggestion ?? 'Нет данных для отображения.'}
+                      </p>
+
+                      <div className={styles.aiSuggestionActions}>
+                        <Button type="button" size="xs" onClick={handleApplyDescription}>
+                          Применить
+                        </Button>
+
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="default"
+                          onClick={() => setIsDescriptionPopoverOpened(false)}
+                        >
+                          Закрыть
+                        </Button>
+                      </div>
+                    </div>
+                  </Popover.Dropdown>
+                </Popover>
+                <div className={styles.counter}>{descriptionValue?.length ?? 0}/1000</div>
               </div>
-            </form>
-          </div>
+            </div>
+
+            <div className={styles.actions}>
+              <Button
+                type="submit"
+                loading={updateMutation.isPending}
+                disabled={!isValid || updateMutation.isPending}
+              >
+                Сохранить
+              </Button>
+
+              <Button component={Link} to={`/ads/${itemId}`} variant="default">
+                Отменить
+              </Button>
+            </div>
+          </form>
         </div>
       </main>
     </PageLayout>
   );
 };
+
 export default ListingEditPage;
