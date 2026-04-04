@@ -2,10 +2,10 @@ import { Button, Loader, Select, TextInput, Textarea } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { getItemById, putItemById } from '../../shared/api/items.api';
 import { getErrorMessage } from '../../shared/lib/get-error-message';
@@ -15,6 +15,11 @@ import { mapFormValuesToRequest } from '../../features/listing-edit/lib/map-form
 import { listingEditSchema } from '../../features/listing-edit/model/listing-edit.schema';
 import type { ListingEditFormValues } from '../../features/listing-edit/model/listing-edit.types';
 import styles from './listing-edit-page.module.scss';
+
+import { clearEditDraft } from '../../features/listing-edit/lib/clear-edit-draft';
+import { getEditDraftKey } from '../../features/listing-edit/lib/get-edit-draft-key';
+import { loadEditDraft } from '../../features/listing-edit/lib/load-edit-draft';
+import { saveEditDraft } from '../../features/listing-edit/lib/save-edit-draft';
 
 const categoryOptions = [
   { value: 'auto', label: 'Авто' },
@@ -79,9 +84,14 @@ const isEmptyValue = (value: unknown) => {
 const ListingEditPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const itemId = Number(id);
   const isValidItemId = Number.isFinite(itemId);
+
+  const draftKey = isValidItemId ? getEditDraftKey(itemId) : '';
+
+  const draftWasHandledRef = useRef(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['item-edit', itemId],
@@ -127,9 +137,27 @@ const ListingEditPage = () => {
   });
 
   useEffect(() => {
-    if (!data) return;
-    reset(getEditDefaultValues(data));
-  }, [data, reset]);
+    if (!data || !draftKey || draftWasHandledRef.current) return;
+
+    const serverValues = getEditDefaultValues(data);
+    const draftValues = loadEditDraft(draftKey);
+
+    if (draftValues) {
+      reset(draftValues);
+
+      notifications.show({
+        title: 'Черновик восстановлен',
+        message: 'Мы восстановили несохранённые изменения из браузера.',
+        color: 'yellow',
+      });
+
+      draftWasHandledRef.current = true;
+      return;
+    }
+
+    reset(serverValues);
+    draftWasHandledRef.current = true;
+  }, [data, draftKey, reset]);
 
   const selectedCategory = useWatch({
     control,
@@ -145,6 +173,25 @@ const ListingEditPage = () => {
     control,
     name: 'params',
   });
+
+  const formValues = useWatch({
+    control,
+  });
+
+  useEffect(() => {
+    if (!draftKey || !formValues) return;
+    if (isLoading || !data) return;
+
+    console.log('Fetched item data for editing:', formValues);
+
+    const timeoutId = window.setTimeout(() => {
+      saveEditDraft(draftKey, formValues as ListingEditFormValues);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [draftKey, formValues, isLoading, data]);
 
   const isWarningField = (fieldName: keyof ListingEditFormValues['params']) => {
     switch (selectedCategory) {
@@ -169,7 +216,24 @@ const ListingEditPage = () => {
   const updateMutation = useMutation({
     mutationFn: (values: ListingEditFormValues) =>
       putItemById(itemId, mapFormValuesToRequest(values)),
-    onSuccess: () => {
+    onSuccess: async () => {
+      if (draftKey) {
+        clearEditDraft(draftKey);
+      }
+
+      queryClient.removeQueries({
+        queryKey: ['item-details', itemId],
+        exact: true,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['item-edit', itemId],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['items'],
+      });
+
       notifications.show({
         title: 'Успешно',
         message: 'Объявление сохранено',
