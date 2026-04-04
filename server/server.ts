@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 
 import items from 'data/items.json' with { type: 'json' };
 import { Item } from 'src/types.ts';
@@ -20,10 +21,15 @@ fastify.use((_, __, next) =>
 );
 
 // Настройка CORS
-fastify.use((_, reply, next) => {
-  reply.setHeader('Access-Control-Allow-Origin', '*');
-  next();
+await fastify.register(cors, {
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'PUT', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
 });
+// fastify.use((_, reply, next) => {
+//   reply.setHeader('Access-Control-Allow-Origin', '*');
+//   next();
+// });
 
 interface ItemGetRequest extends Fastify.RequestGenericInterface {
   Params: {
