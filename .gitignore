@@ -26,7 +26,6 @@ pnpm-debug.log*
 # editor / os
 .DS_Store
 Thumbs.db
-.vscode
 .idea
 
 # typescript
