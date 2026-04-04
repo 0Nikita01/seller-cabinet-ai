@@ -1,0 +1,182 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 0 48px;
+}
+
+.container {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 32px;
+
+}
+
+.content {
+  //border: 1px solid white;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.divider {
+  height: 2px;
+  margin: 0;
+  background-color: rgba(141, 141, 149, 0.22);
+}
+
+.loaderState {
+  display: flex;
+  height: 90vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.backLinkWrapper {
+  margin-bottom: 20px;
+  padding-left: 20px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+  padding-left: 20px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 560px);
+  gap: 32px;
+  align-items: start;
+}
+
+.leftColumn,
+.categoryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.required {
+  color: #ff6b6b;
+}
+
+.descriptionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.counter {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.categoryBlock {
+  max-width: 720px;
+}
+
+.paramsGrid {
+  display: grid;
+  max-width: 720px;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.paramField {
+  &[data-warning='true'] {
+    :global(.mantine-Input-input),
+    :global(.mantine-Select-input),
+    :global(.mantine-Textarea-input),
+    :global(.mantine-NumberInput-input) {
+      outline: 1px solid #f5b041;
+      //border-color: ;
+      box-shadow: 0 0 0 1px rgba(245, 176, 65, 0.35);
+    }
+  }
+}
+
+.descriptionBlock {
+  display: flex;
+  max-width: 1020px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 20px;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .sectionTitle {
+    font-size: 26px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,539 @@
+import { Button, Loader, Select, TextInput, Textarea } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+
+import { getItemById, putItemById } from '../../shared/api/items.api';
+import { getErrorMessage } from '../../shared/lib/get-error-message';
+import PageLayout from '../../shared/ui/page-layout/page-layout';
+import { getEditDefaultValues } from '../../features/listing-edit/lib/get-edit-default-values';
+import { mapFormValuesToRequest } from '../../features/listing-edit/lib/map-form-values-to-request';
+import { listingEditSchema } from '../../features/listing-edit/model/listing-edit.schema';
+import type { ListingEditFormValues } from '../../features/listing-edit/model/listing-edit.types';
+import styles from './listing-edit-page.module.scss';
+
+const categoryOptions = [
+  { value: 'auto', label: 'Авто' },
+  { value: 'real_estate', label: 'Недвижимость' },
+  { value: 'electronics', label: 'Электроника' },
+];
+
+const autoTransmissionOptions = [
+  { value: 'automatic', label: 'Автомат' },
+  { value: 'manual', label: 'Механика' },
+];
+
+const realEstateTypeOptions = [
+  { value: 'flat', label: 'Квартира' },
+  { value: 'house', label: 'Дом' },
+  { value: 'room', label: 'Комната' },
+];
+
+const electronicsTypeOptions = [
+  { value: 'phone', label: 'Телефон' },
+  { value: 'laptop', label: 'Ноутбук' },
+  { value: 'misc', label: 'Другое' },
+];
+
+const electronicsConditionOptions = [
+  { value: 'new', label: 'Новый' },
+  { value: 'used', label: 'Б/у' },
+];
+
+const AUTO_WARNING_FIELDS: Array<keyof ListingEditFormValues['params']> = [
+  'brand',
+  'model',
+  'yearOfManufacture',
+  'transmission',
+  'mileage',
+  'enginePower',
+];
+
+const REAL_ESTATE_WARNING_FIELDS: Array<keyof ListingEditFormValues['params']> = [
+  'type',
+  'address',
+  'area',
+  'floor',
+];
+
+const ELECTRONICS_WARNING_FIELDS: Array<keyof ListingEditFormValues['params']> = [
+  'type',
+  'brand',
+  'model',
+  'condition',
+  'color',
+];
+
+const isEmptyValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    return value.trim() === '';
+  }
+
+  return value === undefined || value === null;
+};
+
+const ListingEditPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const itemId = Number(id);
+  const isValidItemId = Number.isFinite(itemId);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['item-edit', itemId],
+    queryFn: () => getItemById(itemId),
+    enabled: isValidItemId,
+    retry: false,
+  });
+
+  const defaultValues = useMemo<ListingEditFormValues>(
+    () => ({
+      category: 'auto',
+      title: '',
+      price: '',
+      description: '',
+      params: {
+        brand: '',
+        model: '',
+        yearOfManufacture: '',
+        transmission: '',
+        mileage: '',
+        enginePower: '',
+        type: '',
+        address: '',
+        area: '',
+        floor: '',
+        condition: '',
+        color: '',
+      },
+    }),
+    [],
+  );
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, touchedFields, isValid },
+  } = useForm<ListingEditFormValues>({
+    resolver: zodResolver(listingEditSchema),
+    defaultValues,
+    mode: 'onBlur',
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    reset(getEditDefaultValues(data));
+  }, [data, reset]);
+
+  const selectedCategory = useWatch({
+    control,
+    name: 'category',
+  });
+
+  const descriptionValue = useWatch({
+    control,
+    name: 'description',
+  });
+
+  const paramsValues = useWatch({
+    control,
+    name: 'params',
+  });
+
+  const isWarningField = (fieldName: keyof ListingEditFormValues['params']) => {
+    switch (selectedCategory) {
+      case 'auto':
+        return AUTO_WARNING_FIELDS.includes(fieldName) && isEmptyValue(paramsValues?.[fieldName]);
+
+      case 'real_estate':
+        return (
+          REAL_ESTATE_WARNING_FIELDS.includes(fieldName) && isEmptyValue(paramsValues?.[fieldName])
+        );
+
+      case 'electronics':
+        return (
+          ELECTRONICS_WARNING_FIELDS.includes(fieldName) && isEmptyValue(paramsValues?.[fieldName])
+        );
+
+      default:
+        return false;
+    }
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: (values: ListingEditFormValues) =>
+      putItemById(itemId, mapFormValuesToRequest(values)),
+    onSuccess: () => {
+      notifications.show({
+        title: 'Успешно',
+        message: 'Объявление сохранено',
+        color: 'green',
+      });
+
+      navigate(`/ads/${itemId}`);
+    },
+    onError: (mutationError) => {
+      notifications.show({
+        title: 'Ошибка сохранения',
+        message: getErrorMessage(mutationError),
+        color: 'red',
+      });
+    },
+  });
+
+  const onSubmit = (values: ListingEditFormValues) => {
+    updateMutation.mutate(values);
+  };
+
+  if (!isValidItemId) {
+    return (
+      <PageLayout>
+        <main className={styles.page}>
+          <div className={styles.container}>
+            <div className={styles.stateBox}>
+              <h1 className={styles.stateTitle}>Некорректный идентификатор</h1>
+              <p className={styles.stateText}>
+                Не удалось определить объявление для редактирования.
+              </p>
+              <Button onClick={() => navigate('/ads')}>Вернуться к объявлениям</Button>
+            </div>
+          </div>
+        </main>
+      </PageLayout>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageLayout>
+        <div className={styles.loaderState}>
+          <Loader size={92} />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <PageLayout>
+        <main className={styles.page}>
+          <div className={styles.container}>
+            <div className={styles.stateBox}>
+              <h1 className={styles.stateTitle}>Ошибка загрузки</h1>
+              <p className={styles.stateText}>{getErrorMessage(error)}</p>
+              <Button onClick={() => navigate(`/ads/${itemId}`)}>Вернуться к объявлению</Button>
+            </div>
+          </div>
+        </main>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <PageLayout>
+      <main className={styles.page}>
+        <div className={styles.container}>
+          <div className={styles.backLinkWrapper}>
+            <Link to={`/ads/${itemId}`} className={styles.backLink}>
+              <IconArrowLeft size={18} />
+              <span>К объявлению</span>
+            </Link>
+          </div>
+
+          <header className={styles.header}>
+            <h1 className={styles.title}>Редактирование объявления</h1>
+          </header>
+
+          <div className={styles.content}>
+            <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+              <div className={styles.grid}>
+                <div className={styles.leftColumn}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>
+                      Категория <span className={styles.required}>*</span>
+                    </label>
+
+                    <Controller
+                      control={control}
+                      name="category"
+                      render={({ field }) => (
+                        <Select
+                          data={categoryOptions}
+                          value={field.value}
+                          onChange={(value) => field.onChange(value)}
+                          error={touchedFields.category ? errors.category?.message : undefined}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label}>
+                      Название <span className={styles.required}>*</span>
+                    </label>
+                    <TextInput
+                      {...register('title')}
+                      error={touchedFields.title ? errors.title?.message : undefined}
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label}>
+                      Цена <span className={styles.required}>*</span>
+                    </label>
+
+                    <TextInput
+                      {...register('price')}
+                      inputMode="numeric"
+                      error={touchedFields.price ? errors.price?.message : undefined}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.divider} />
+
+              <div className={styles.categoryBlock}>
+                <h2 className={styles.sectionTitle}>Характеристики</h2>
+
+                {selectedCategory === 'auto' && (
+                  <div className={styles.paramsGrid}>
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('brand') || undefined}
+                    >
+                      <TextInput label="Бренд" {...register('params.brand')} />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('model') || undefined}
+                    >
+                      <TextInput label="Модель" {...register('params.model')} />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('yearOfManufacture') || undefined}
+                    >
+                      <TextInput
+                        label="Год выпуска"
+                        {...register('params.yearOfManufacture')}
+                        error={
+                          touchedFields.params?.yearOfManufacture
+                            ? errors.params?.yearOfManufacture?.message
+                            : undefined
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('transmission') || undefined}
+                    >
+                      <Controller
+                        control={control}
+                        name="params.transmission"
+                        render={({ field }) => (
+                          <Select
+                            label="Коробка передач"
+                            data={autoTransmissionOptions}
+                            value={field.value}
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('mileage') || undefined}
+                    >
+                      <TextInput
+                        label="Пробег"
+                        {...register('params.mileage')}
+                        error={
+                          touchedFields.params?.mileage
+                            ? errors.params?.mileage?.message
+                            : undefined
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('enginePower') || undefined}
+                    >
+                      <TextInput
+                        label="Мощность двигателя"
+                        {...register('params.enginePower')}
+                        error={
+                          touchedFields.params?.enginePower
+                            ? errors.params?.enginePower?.message
+                            : undefined
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedCategory === 'real_estate' && (
+                  <div className={styles.paramsGrid}>
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('type') || undefined}
+                    >
+                      <Controller
+                        control={control}
+                        name="params.type"
+                        render={({ field }) => (
+                          <Select
+                            label="Тип"
+                            data={realEstateTypeOptions}
+                            value={field.value}
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('address') || undefined}
+                    >
+                      <TextInput label="Адрес" {...register('params.address')} />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('area') || undefined}
+                    >
+                      <TextInput
+                        label="Площадь"
+                        {...register('params.area')}
+                        error={
+                          touchedFields.params?.area ? errors.params?.area?.message : undefined
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('floor') || undefined}
+                    >
+                      <TextInput
+                        label="Этаж"
+                        {...register('params.floor')}
+                        error={
+                          touchedFields.params?.floor ? errors.params?.floor?.message : undefined
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedCategory === 'electronics' && (
+                  <div className={styles.paramsGrid}>
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('type') || undefined}
+                    >
+                      <Controller
+                        control={control}
+                        name="params.type"
+                        render={({ field }) => (
+                          <Select
+                            label="Тип"
+                            data={electronicsTypeOptions}
+                            value={field.value}
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('brand') || undefined}
+                    >
+                      <TextInput label="Бренд" {...register('params.brand')} />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('model') || undefined}
+                    >
+                      <TextInput label="Модель" {...register('params.model')} />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('condition') || undefined}
+                    >
+                      <Controller
+                        control={control}
+                        name="params.condition"
+                        render={({ field }) => (
+                          <Select
+                            label="Состояние"
+                            data={electronicsConditionOptions}
+                            value={field.value}
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div
+                      className={styles.paramField}
+                      data-warning={isWarningField('color') || undefined}
+                    >
+                      <TextInput label="Цвет" {...register('params.color')} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.divider} />
+
+              <div className={styles.descriptionBlock}>
+                <div className={styles.descriptionHeader}>
+                  <label className={styles.label}>Описание</label>
+                  <span className={styles.counter}>{descriptionValue?.length ?? 0}/1000</span>
+                </div>
+
+                <Textarea
+                  {...register('description')}
+                  resize="vertical"
+                  maxLength={1000}
+                  error={touchedFields.description ? errors.description?.message : undefined}
+                />
+              </div>
+
+              <div className={styles.actions}>
+                <Button
+                  type="submit"
+                  loading={updateMutation.isPending}
+                  disabled={!isValid || updateMutation.isPending}
+                >
+                  Сохранить
+                </Button>
+
+                <Button component={Link} to={`/ads/${itemId}`} variant="default">
+                  Отменить
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    </PageLayout>
+  );
+};
+export default ListingEditPage;

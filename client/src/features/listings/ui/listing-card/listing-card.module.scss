@@ -1,0 +1,194 @@
+.link {
+  display: block;
+  text-decoration: none;
+}
+
+.card {
+  display: flex;
+  min-height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.38);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(11, 132, 255, 0.22);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  }
+}
+
+.cardGrid {
+  flex-direction: column;
+}
+
+.cardList {
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 152px;
+}
+
+.imageWrapper {
+  background:
+    linear-gradient(135deg, rgba(11, 132, 255, 0.18), rgba(156, 39, 176, 0.16)),
+    rgba(255, 255, 255, 0.7);
+
+  .image {
+    aspect-ratio: 2 / 1.7;
+    width: 100%;
+    border-radius: 16px;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+/* GRID image */
+.cardGrid .imageWrapper {
+  padding: 0;
+}
+
+.cardGrid .image {
+  width: 100%;
+}
+
+/* LIST image */
+.cardList .imageWrapper {
+  flex: 0 0 210px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.cardList .image {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+/* CONTENT */
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 10px 10px;
+}
+
+.cardList .content {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cardList .meta {
+  gap: 8px;
+}
+
+/* CATEGORY */
+.category {
+  width: fit-content;
+  margin: -32px 0 0;
+  padding: 4px 12px;
+  border: 1px solid rgba(141, 141, 149, 0.28);
+  border-radius: 10px;
+  color: #4f525c;
+  font-size: 14px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cardList .category {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #323439;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+/* TITLE */
+.title {
+  margin: 0;
+  color: #222222;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* PRICE */
+.price {
+  margin: 0;
+  color: #232324;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+// .cardList .price {
+//   color: #7e8088;
+// }
+
+/* BADGE */
+.badge {
+  align-self: flex-start;
+  background: rgba(242, 159, 5, 0.3);
+  color: #f29f05;
+  font-size: 14px;
+  font-weight: 500;
+
+  &__dot {
+    border-radius: 50%;
+    width: 6px;
+    height: 6px;
+    display: inline-block;
+    background-color: #faad14;
+  }
+
+  &__text {
+    color: #faad14;
+  }
+}
+
+@media (max-width: 900px) {
+  .cardList .imageWrapper {
+    flex: 0 0 170px;
+  }
+
+//   .cardList .image {
+//     width: 80px;
+//     height: 80px;
+//   }
+}
+
+@media (max-width: 768px) {
+  .cardList {
+    flex-direction: column;
+  }
+
+  .cardList .imageWrapper {
+    flex: none;
+    min-height: 140px;
+  }
+
+  .cardList .content {
+    padding: 16px 14px 14px;
+  }
+}

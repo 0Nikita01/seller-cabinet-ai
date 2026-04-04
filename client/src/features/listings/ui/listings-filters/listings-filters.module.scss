@@ -1,0 +1,123 @@
+.filters {
+  padding: 24px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.32);
+  //backdrop-filter: blur(16px);
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+  color: #222222;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #222222;
+}
+
+.categories {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.checkboxRoot {
+  margin: 0;
+}
+
+.checkboxBody {
+  align-items: center;
+}
+
+.checkboxLabelWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.checkboxLabel {
+  padding-left: 6px;
+  color: #222222;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.checkboxInput {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px !important;
+}
+
+.checkboxIcon {
+  width: 10px;
+  height: 10px;
+}
+
+.divider {
+  height: 1px;
+  margin: 24px 0;
+  background-color: rgba(141, 141, 149, 0.22);
+}
+
+.switchRoot {
+  margin: 0;
+}
+
+.switchBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  gap: 10px;
+}
+
+.switchLabelWrapper {
+  flex: 1 1 auto;
+}
+
+.switchLabel {
+  color: #222222;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 0 !important;
+}
+
+.btnWrapper {
+    //background-color: #222222;
+    border-radius: 14px;
+    width: 100%;
+
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.32);
+    backdrop-filter: blur(16px);
+
+    display: flex;
+    justify-content: center;
+
+    margin-top: 20px;
+
+    .resetButton {
+        color: #c8c8c8;
+        font-size: 14px;
+        line-height: 1.35;
+        width: 100%;
+    }
+}
