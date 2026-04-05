@@ -7,6 +7,7 @@ import { ItemsGetInQuerySchema, ItemUpdateInSchema } from 'src/validation.ts';
 import { treeifyError, ZodError } from 'zod';
 import { doesItemNeedRevision } from './src/utils.ts';
 
+import { ollamaGenerate } from './src/ai/ollama.client.ts';
 import { buildDescriptionPrompt, buildPricePrompt } from './src/ai/ai.prompts.ts';
 
 const ITEMS = items as Item[];
@@ -28,10 +29,6 @@ await fastify.register(cors, {
   methods: ['GET', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
 });
-// fastify.use((_, reply, next) => {
-//   reply.setHeader('Access-Control-Allow-Origin', '*');
-//   next();
-// });
 
 interface ItemGetRequest extends Fastify.RequestGenericInterface {
   Params: {
@@ -39,7 +36,7 @@ interface ItemGetRequest extends Fastify.RequestGenericInterface {
   };
 }
 
-fastify.post('/ai/description', (request, reply) => {
+fastify.post('/ai/description', async (request, reply) => {
   const payload = request.body as {
     item: {
       category: 'auto' | 'real_estate' | 'electronics';
@@ -51,26 +48,38 @@ fastify.post('/ai/description', (request, reply) => {
     mode: 'generate' | 'improve';
   };
 
-  const promptData = buildDescriptionPrompt(payload);
+  try {
+    const promptData = buildDescriptionPrompt(payload);
 
-  console.log('\n=== DESCRIPTION SYSTEM PROMPT ===\n');
-  console.log(promptData.systemPrompt);
-  console.log('\n=== DESCRIPTION USER PROMPT ===\n');
-  console.log(promptData.userPrompt);
-
-  reply.send({
-    success: true,
-    debug: true,
-    prompt: {
+    const ollamaResult = await ollamaGenerate({
+      model: 'llama3',
       systemPrompt: promptData.systemPrompt,
-      userPrompt: promptData.userPrompt,
-      jsonSchema: promptData.jsonSchema,
-      normalizedItem: promptData.debug.normalizedItem,
-    },
-  });
+      prompt: promptData.userPrompt,
+      format: promptData.jsonSchema,
+    });
+
+    const rawContent = ollamaResult.response ?? '{}';
+    const parsed = JSON.parse(rawContent) as { description: string };
+
+    reply.send({
+      success: true,
+      prompt: {
+        systemPrompt: promptData.systemPrompt,
+        userPrompt: promptData.userPrompt,
+        normalizedItem: promptData.debug.normalizedItem,
+      },
+      result: parsed,
+    });
+  } catch (error) {
+    console.error(error);
+    reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'AI description request failed',
+    });
+  }
 });
 
-fastify.post('/ai/price', (request, reply) => {
+fastify.post('/ai/price', async (request, reply) => {
   const payload = request.body as {
     item: {
       category: 'auto' | 'real_estate' | 'electronics';
@@ -81,23 +90,44 @@ fastify.post('/ai/price', (request, reply) => {
     };
   };
 
-  const promptData = buildPricePrompt(payload);
+  try {
+    const promptData = buildPricePrompt(payload);
 
-  console.log('\n=== PRICE SYSTEM PROMPT ===\n');
-  console.log(promptData.systemPrompt);
-  console.log('\n=== PRICE USER PROMPT ===\n');
-  console.log(promptData.userPrompt);
-
-  reply.send({
-    success: true,
-    debug: true,
-    prompt: {
+    const ollamaResult = await ollamaGenerate({
+      model: 'llama3',
       systemPrompt: promptData.systemPrompt,
-      userPrompt: promptData.userPrompt,
-      jsonSchema: promptData.jsonSchema,
-      normalizedItem: promptData.debug.normalizedItem,
-    },
-  });
+      prompt: promptData.userPrompt,
+      format: promptData.jsonSchema,
+    });
+
+    const rawContent = ollamaResult.response ?? '{}';
+    const parsed = JSON.parse(rawContent) as {
+      priceRanges: Array<{
+        condition: 'new' | 'good_used' | 'used_with_defects' | 'resale';
+        label: string;
+        min: number;
+        max: number;
+        comment: string;
+      }>;
+      summary: string;
+    };
+
+    reply.send({
+      success: true,
+      prompt: {
+        systemPrompt: promptData.systemPrompt,
+        userPrompt: promptData.userPrompt,
+        normalizedItem: promptData.debug.normalizedItem,
+      },
+      result: parsed,
+    });
+  } catch (error) {
+    console.error(error);
+    reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'AI price request failed',
+    });
+  }
 });
 
 fastify.get<ItemGetRequest>('/items/:id', (request, reply) => {

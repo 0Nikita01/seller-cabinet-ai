@@ -1,30 +1,34 @@
-type OllamaChatRequest = {
+type OllamaGenerateParams = {
   model: string;
   systemPrompt: string;
-  userPrompt: string;
-  format: object;
+  prompt: string;
+  format?: object;
 };
 
-export const ollamaChat = async ({
+type OllamaGenerateResponse = {
+  model: string;
+  response: string;
+  done: boolean;
+};
+
+export const ollamaGenerate  = async ({
   model,
   systemPrompt,
-  userPrompt,
+  prompt,
   format,
-}: OllamaChatRequest) => {
-  const response = await fetch('http://localhost:11434/api/chat', {
+}: OllamaGenerateParams): Promise<OllamaGenerateResponse> => {
+  const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model,
+      prompt,
+      system: systemPrompt,
       stream: false,
       keep_alive: '10m',
       format,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
     }),
   });
 
@@ -35,5 +39,5 @@ export const ollamaChat = async ({
 
   const data = await response.json();
 
-  return data;
+  return data as OllamaGenerateResponse;
 };
