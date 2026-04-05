@@ -23,6 +23,16 @@ Seller Cabinet AI — веб-приложение личного кабинет�
 
 ---
 
+### Начало 
+
+Склонируйте репозиторий
+
+```bash
+git pull https://github.com/0Nikita01/seller-cabinet-ai.git
+```
+
+---
+
 ## Установка зависимостей
 
 ### Frontend
