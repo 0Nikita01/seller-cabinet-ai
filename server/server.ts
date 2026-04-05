@@ -7,6 +7,8 @@ import { ItemsGetInQuerySchema, ItemUpdateInSchema } from 'src/validation.ts';
 import { treeifyError, ZodError } from 'zod';
 import { doesItemNeedRevision } from './src/utils.ts';
 
+import { buildDescriptionPrompt, buildPricePrompt } from './src/ai/ai.prompts.ts';
+
 const ITEMS = items as Item[];
 
 const fastify = Fastify({
@@ -36,6 +38,67 @@ interface ItemGetRequest extends Fastify.RequestGenericInterface {
     id: string;
   };
 }
+
+fastify.post('/ai/description', (request, reply) => {
+  const payload = request.body as {
+    item: {
+      category: 'auto' | 'real_estate' | 'electronics';
+      title: string;
+      description?: string;
+      price: number;
+      params: Record<string, unknown>;
+    };
+    mode: 'generate' | 'improve';
+  };
+
+  const promptData = buildDescriptionPrompt(payload);
+
+  console.log('\n=== DESCRIPTION SYSTEM PROMPT ===\n');
+  console.log(promptData.systemPrompt);
+  console.log('\n=== DESCRIPTION USER PROMPT ===\n');
+  console.log(promptData.userPrompt);
+
+  reply.send({
+    success: true,
+    debug: true,
+    prompt: {
+      systemPrompt: promptData.systemPrompt,
+      userPrompt: promptData.userPrompt,
+      jsonSchema: promptData.jsonSchema,
+      normalizedItem: promptData.debug.normalizedItem,
+    },
+  });
+});
+
+fastify.post('/ai/price', (request, reply) => {
+  const payload = request.body as {
+    item: {
+      category: 'auto' | 'real_estate' | 'electronics';
+      title: string;
+      description?: string;
+      price: number;
+      params: Record<string, unknown>;
+    };
+  };
+
+  const promptData = buildPricePrompt(payload);
+
+  console.log('\n=== PRICE SYSTEM PROMPT ===\n');
+  console.log(promptData.systemPrompt);
+  console.log('\n=== PRICE USER PROMPT ===\n');
+  console.log(promptData.userPrompt);
+
+  reply.send({
+    success: true,
+    debug: true,
+    prompt: {
+      systemPrompt: promptData.systemPrompt,
+      userPrompt: promptData.userPrompt,
+      jsonSchema: promptData.jsonSchema,
+      normalizedItem: promptData.debug.normalizedItem,
+    },
+  });
+});
 
 fastify.get<ItemGetRequest>('/items/:id', (request, reply) => {
   const itemId = Number(request.params.id);

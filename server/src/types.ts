@@ -44,6 +44,17 @@ type ElectronicsItemParams = {
   color?: string;
 };
 
+export type ItemCategory = 'auto' | 'real_estate' | 'electronics';
+
+
+export type ItemUpdateIn = {
+  category: ItemCategory;
+  title: string;
+  description?: string;
+  price: number;
+  params: AutoItemParams | RealEstateItemParams | ElectronicsItemParams;
+};
+
 export type ItemSortColumn = Extract<keyof Item, 'title' | 'createdAt'>;
 
 export type SortDirection = 'asc' | 'desc';

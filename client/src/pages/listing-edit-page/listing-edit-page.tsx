@@ -19,6 +19,8 @@ import { getErrorMessage } from '../../shared/lib/get-error-message';
 import PageLayout from '../../shared/ui/page-layout/page-layout';
 import styles from './listing-edit-page.module.scss';
 
+import { debugGenerateDescription, debugGeneratePrice } from '../../shared/api/ai.api';
+
 const categoryOptions = [
   { value: 'auto', label: 'Авто' },
   { value: 'real_estate', label: 'Недвижимость' },
@@ -248,10 +250,18 @@ const ListingEditPage = () => {
       setIsGeneratingDescription(true);
 
       const values = getValues();
-      const suggestion = await generateDescriptionSuggestion(values);
+      const mode = values.description.trim() ? 'improve' : 'generate';
+      const result = await debugGenerateDescription(values, mode);
 
-      setDescriptionSuggestion(suggestion);
+      console.log('DESCRIPTION PROMPT RESPONSE:', result);
+      setDescriptionSuggestion(result.prompt.userPrompt);
       setIsDescriptionPopoverOpened(true);
+    } catch (generationError) {
+      notifications.show({
+        title: 'Ошибка AI',
+        message: getErrorMessage(generationError),
+        color: 'red',
+      });
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -274,10 +284,17 @@ const ListingEditPage = () => {
       setIsGeneratingPrice(true);
 
       const values = getValues();
-      const suggestion = await generatePriceSuggestion(values);
+      const result = await debugGeneratePrice(values);
 
-      setPriceSuggestion(suggestion);
+      console.log('PRICE PROMPT RESPONSE:', result);
+      setPriceSuggestion(result.prompt.userPrompt);
       setIsPricePopoverOpened(true);
+    } catch (generationError) {
+      notifications.show({
+        title: 'Ошибка AI',
+        message: getErrorMessage(generationError),
+        color: 'red',
+      });
     } finally {
       setIsGeneratingPrice(false);
     }
