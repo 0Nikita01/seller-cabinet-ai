@@ -5,13 +5,6 @@ import { useListingsStore } from '../../model/listings-store';
 
 import styles from './listings-filters.module.scss';
 
-// const categoryOptions = [
-//   { value: 'all', label: 'Все категории' },
-//   { value: 'realty', label: 'Недвижимость' },
-//   { value: 'auto', label: 'Авто' },
-//   { value: 'electronics', label: 'Электроника' },
-// ];
-
 const ListingsFilters = () => {
   const selectedCategories = useListingsStore((state) => state.selectedCategories);
   const needsRevision = useListingsStore((state) => state.needsRevision);

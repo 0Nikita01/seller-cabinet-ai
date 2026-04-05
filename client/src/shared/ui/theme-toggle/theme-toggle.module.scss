@@ -1,0 +1,9 @@
+.toggle {
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-soft);
+
+  &:hover {
+    background: var(--surface-secondary);
+  }
+}

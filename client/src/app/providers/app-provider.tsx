@@ -5,20 +5,29 @@ import { QueryClientProvider } from '@tanstack/react-query';
 
 import { queryClient } from './query-client';
 import { RingLoader } from '../../shared/ui/ring-loader/ring-loader';
+import { ThemeProvider } from './theme-provider';
+import { useAppTheme } from './theme-context';
 
 const inputStyles = {
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    color: '#2f2f35',
-    fontSize: '18px',
+    backgroundColor: 'var(--input-bg)',
+    borderColor: 'var(--border-soft)',
+    color: 'var(--text-primary)',
+    fontSize: '16px',
     height: '42px',
   },
   label: {
-    color: 'rgba(255, 255, 255, 0.72)',
+    color: 'var(--text-secondary)',
     fontSize: '16px',
     marginBottom: '6px',
-  }
+  },
+};
+
+const checkboxStyles = {
+  label: {
+    color: 'var(--text-secondary)',
+    fontSize: '16px',
+  },
 };
 
 const theme = createTheme({
@@ -45,6 +54,9 @@ const theme = createTheme({
     Select: {
       styles: inputStyles,
     },
+    Checkbox: {
+      styles: checkboxStyles,
+    },
     NumberInput: {
       styles: inputStyles,
     },
@@ -55,13 +67,23 @@ type AppProviderProps = {
   children: ReactNode;
 };
 
-export const AppProvider = ({ children }: AppProviderProps) => {
+const InnerProviders = ({ children }: AppProviderProps) => {
+  const { colorScheme } = useAppTheme();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme}>
+      <MantineProvider theme={theme} forceColorScheme={colorScheme}>
         <Notifications position="top-right" />
         {children}
       </MantineProvider>
     </QueryClientProvider>
+  );
+};
+
+export const AppProvider = ({ children }: AppProviderProps) => {
+  return (
+    <ThemeProvider>
+      <InnerProviders>{children}</InnerProviders>
+    </ThemeProvider>
   );
 };

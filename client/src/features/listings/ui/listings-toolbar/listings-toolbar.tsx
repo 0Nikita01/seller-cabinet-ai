@@ -49,15 +49,6 @@ const ListingsToolbar = () => {
           classNames={{
             root: styles.searchRoot,
           }}
-          styles={{
-            input: {
-              height: '42px',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              background: 'rgba(255, 255, 255, 0.72)',
-              color: '#222222',
-              fontSize: '16px',
-            },
-          }}
           rightSectionWidth={44}
           radius="md"
           placeholder="Найти объявление...."
@@ -71,6 +62,7 @@ const ListingsToolbar = () => {
             <ActionIcon
               key={mode.value}
               variant="subtle"
+              color="var(--text-secondary)"
               size={25}
               radius="xs"
               aria-label={mode.label}
@@ -94,9 +86,6 @@ const ListingsToolbar = () => {
           styles={{
             input: {
               height: '42px',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              background: 'rgba(255, 255, 255, 0.72)',
-              color: '#222222',
               fontSize: '16px',
             },
           }}

@@ -12,6 +12,24 @@
 
 @media (max-width: 900px) {
   .grid {
+    //grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 476px) {
+  .grid {
     grid-template-columns: 1fr;
   }
 }

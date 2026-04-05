@@ -2,7 +2,7 @@
   padding: 24px 20px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--block-bg);
   //backdrop-filter: blur(16px);
 }
 
@@ -26,7 +26,7 @@
 
 .sectionTitle {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   line-height: 1.25;
   color: #222222;
@@ -35,7 +35,7 @@
 .categories {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .checkboxRoot {
@@ -53,9 +53,6 @@
 
 .checkboxLabel {
   padding-left: 6px;
-  color: #222222;
-  font-size: 16px;
-  line-height: 1.35;
 }
 
 .checkboxInput {
@@ -106,7 +103,7 @@
 
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.32);
+    background: var(--block-bg);
     backdrop-filter: blur(16px);
 
     display: flex;
@@ -115,7 +112,7 @@
     margin-top: 20px;
 
     .resetButton {
-        color: #c8c8c8;
+        color: var(--text-muted);
         font-size: 14px;
         line-height: 1.35;
         width: 100%;

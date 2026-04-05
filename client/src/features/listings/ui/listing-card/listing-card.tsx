@@ -57,15 +57,18 @@ const ListingCard = ({ listing, variant = 'grid' }: ListingCardProps) => {
               styles={{
                 root: {
                   padding: '10px 10px',
+                  backgroundColor: 'var(--bg-bage)',
                 },
                 label: {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
+                  textTransform: 'none',
+                  fontSize: '13px',
+                  fontWeight: 400,
                 },
               }}
               radius="xs"
-              color="rgba(242, 159, 5, 0.3)"
             >
               <span className={styles.badge__dot}></span>
               <span className={styles.badge__text}>Требует доработок</span>

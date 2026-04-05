@@ -1,14 +1,37 @@
 import { apiInstance } from './api-instance';
 import type { ListingEditFormValues } from '../../features/listing-edit/model/listing-edit.types';
 
-type AiPromptResponse = {
+type AiDescriptionResult = {
+  description: string;
+};
+
+type AiPriceResult = {
+  priceRanges: Array<{
+    condition: 'new' | 'good_used' | 'used_with_defects' | 'resale';
+    label: string;
+    min: number;
+    max: number;
+    comment: string;
+  }>;
+  summary: string;
+};
+
+type AiPromptDebug = {
+  systemPrompt: string;
+  userPrompt: string;
+  normalizedItem: Record<string, unknown>;
+};
+
+type AiDescriptionResponse = {
   success: true;
-  prompt: {
-    systemPrompt: string;
-    userPrompt: string;
-    jsonSchema: Record<string, unknown>;
-    normalizedItem: Record<string, unknown>;
-  };
+  prompt: AiPromptDebug;
+  result: AiDescriptionResult;
+};
+
+type AiPriceResponse = {
+  success: true;
+  prompt: AiPromptDebug;
+  result: AiPriceResult;
 };
 
 const compactObject = (obj: Record<string, unknown>) => {
@@ -20,34 +43,84 @@ const compactObject = (obj: Record<string, unknown>) => {
   );
 };
 
+const toOptionalNumber = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed ? Number(trimmed) : undefined;
+};
+
 const mapFormValuesToAiItem = (values: ListingEditFormValues) => {
-  return {
+  const baseItem = {
     category: values.category,
     title: values.title.trim(),
     description: values.description.trim() || undefined,
     price: Number(values.price || 0),
-    params: compactObject(values.params as Record<string, unknown>),
+    params: {} as Record<string, unknown>,
   };
+
+  switch (values.category) {
+    case 'auto':
+      baseItem.params = compactObject({
+        brand: values.params.brand,
+        model: values.params.model,
+        yearOfManufacture: toOptionalNumber(values.params.yearOfManufacture),
+        transmission: values.params.transmission || undefined,
+        mileage: toOptionalNumber(values.params.mileage),
+        enginePower: toOptionalNumber(values.params.enginePower),
+      });
+      return baseItem;
+
+    case 'real_estate':
+      baseItem.params = compactObject({
+        type: values.params.type || undefined,
+        address: values.params.address,
+        area: toOptionalNumber(values.params.area),
+        floor: toOptionalNumber(values.params.floor),
+      });
+      return baseItem;
+
+    case 'electronics':
+      baseItem.params = compactObject({
+        type: values.params.type || undefined,
+        brand: values.params.brand,
+        model: values.params.model,
+        condition: values.params.condition || undefined,
+        color: values.params.color,
+      });
+      return baseItem;
+
+    default:
+      return baseItem;
+  }
 };
 
-export const debugGenerateDescription = async (
+export const generateAiDescription = async (
   values: ListingEditFormValues,
   mode: 'generate' | 'improve',
-): Promise<AiPromptResponse> => {
-  const response = await apiInstance.post<AiPromptResponse>('/ai/description', {
-    item: mapFormValuesToAiItem(values),
-    mode,
-  });
+  signal?: AbortSignal,
+): Promise<AiDescriptionResponse> => {
+  const response = await apiInstance.post<AiDescriptionResponse>(
+    '/ai/description',
+    {
+      item: mapFormValuesToAiItem(values),
+      mode,
+    },
+    { signal },
+  );
 
   return response.data;
 };
 
-export const debugGeneratePrice = async (
+export const generateAiPrice = async (
   values: ListingEditFormValues,
-): Promise<AiPromptResponse> => {
-  const response = await apiInstance.post<AiPromptResponse>('/ai/price', {
-    item: mapFormValuesToAiItem(values),
-  });
+  signal?: AbortSignal,
+): Promise<AiPriceResponse> => {
+  const response = await apiInstance.post<AiPriceResponse>(
+    '/ai/price',
+    {
+      item: mapFormValuesToAiItem(values),
+    },
+    { signal },
+  );
 
   return response.data;
 };

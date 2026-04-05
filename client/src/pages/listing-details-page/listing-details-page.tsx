@@ -84,7 +84,7 @@ const ListingDetailsPage = () => {
         <div className={styles.container}>
           <div className={styles.backLinkWrapper}>
             <Link to="/ads" className={styles.backLink}>
-              <IconArrowLeft size={18} />
+              <IconArrowLeft size={18} color="var(--text-secondary)" />
               <span>К списку объявлений</span>
             </Link>
           </div>
@@ -119,10 +119,9 @@ const ListingDetailsPage = () => {
             <div className={styles.infoBlock}>
               {hasRevisionAlert && (
                 <Alert
-                  variant="light"
-                  color="orange"
+                  color="#fcdfb6"
                   radius="md"
-                  icon={<IconAlertCircle size={20} />}
+                  icon={<IconAlertCircle color="#FFA940" size={25} />}
                   className={styles.alert}
                 >
                   <div className={styles.alertContent}>

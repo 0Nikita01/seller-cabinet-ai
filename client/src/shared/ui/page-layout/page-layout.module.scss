@@ -2,11 +2,14 @@
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(156, 39, 176, 0.35), transparent 30%),
-    radial-gradient(circle at 80% 30%, rgba(63, 81, 181, 0.3), transparent 30%),
-    radial-gradient(circle at 50% 80%, rgba(0, 188, 212, 0.28), transparent 35%),
-    linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #111827 100%);
+  background: var(--app-bg);
+}
+
+.themeToggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
 }
 
 .pageContent {

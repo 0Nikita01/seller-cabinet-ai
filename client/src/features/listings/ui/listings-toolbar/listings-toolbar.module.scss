@@ -5,9 +5,9 @@
   justify-content: space-between;
   margin-bottom: 24px;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--border-soft);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--block-bg);
   backdrop-filter: blur(16px);
 }
 
@@ -28,24 +28,24 @@
   align-items: center;
   gap: 8px;
   padding: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--input-bg);
 }
 
 .viewButton {
   border-radius: 10px;
-  color: #6f7380;
+  //color: var(--surface-secondary);
   transition:
     color 0.2s ease;
 
   &:hover {
-    color: #0b84ff;
+    color: var(--color-active) !important;
     background-color: rgba(11, 132, 255, 0.06);
   }
 
   &[data-active='true'] {
-    color: #0b84ff !important;
+    color: var(--color-active) !important;
   }
 }
 
@@ -55,9 +55,9 @@
 
 .selectInput {
   height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--input-bg);
   color: #2f2f35;
   font-size: 18px;
 }

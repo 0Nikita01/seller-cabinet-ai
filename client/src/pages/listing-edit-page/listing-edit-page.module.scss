@@ -22,7 +22,10 @@
 }
 
 .backLink {
-  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
   text-decoration: none;
   opacity: 0.9;
 
@@ -37,7 +40,7 @@
 
 .title {
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 48px;
   font-weight: 700;
   line-height: 1.1;
@@ -70,7 +73,7 @@
 }
 
 .label {
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.35;
@@ -82,7 +85,7 @@
 
 .inlineFieldRow {
   display: flex;
-  align-items: end;
+  align-items: start;
   gap: 16px;
 }
 
@@ -93,9 +96,9 @@
 }
 
 .aiButton {
-  height: 42px;
-  flex: 0 0 auto;
-  align-self: end;
+  //height: 42px !important;
+  color: #FFA940 !important;
+  
 }
 
 .descriptionHeader {
@@ -118,7 +121,7 @@
 
 .sectionTitle {
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 32px;
   font-weight: 700;
   line-height: 1.15;
@@ -178,17 +181,53 @@
 
 .aiSuggestionTitle {
   margin: 0;
-  color: #2a2a2a;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
 }
 
 .aiSuggestionText {
   margin: 0;
-  color: #2a2a2a;
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 1.55;
   white-space: pre-line;
+}
+
+.priceSuggestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.priceSuggestionItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--block-bg);
+}
+
+.priceSuggestionLabel {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.priceSuggestionRange {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.priceSuggestionComment {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .aiSuggestionActions {

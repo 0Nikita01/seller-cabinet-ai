@@ -1,4 +1,6 @@
+import axios from 'axios';
 import { Button, Popover, Loader, Select, TextInput, Textarea } from '@mantine/core';
+import { IconArrowLeft, IconBulb } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +21,7 @@ import { getErrorMessage } from '../../shared/lib/get-error-message';
 import PageLayout from '../../shared/ui/page-layout/page-layout';
 import styles from './listing-edit-page.module.scss';
 
-import { debugGenerateDescription, debugGeneratePrice } from '../../shared/api/ai.api';
+import { generateAiDescription, generateAiPrice } from '../../shared/api/ai.api';
 
 const categoryOptions = [
   { value: 'auto', label: 'Авто' },
@@ -81,32 +83,6 @@ const isEmptyValue = (value: unknown) => {
   return value === undefined || value === null;
 };
 
-const generateDescriptionSuggestion = async (values: ListingEditFormValues) => {
-  await new Promise((resolve) => window.setTimeout(resolve, 900));
-
-  const categoryLabelMap = {
-    auto: 'автомобиля',
-    real_estate: 'объекта недвижимости',
-    electronics: 'товара',
-  } as const;
-
-  return `${values.title} — отличный вариант для тех, кто ищет качественное предложение в категории ${
-    categoryLabelMap[values.category]
-  }. Объявление можно дополнить ключевыми характеристиками и преимуществами, чтобы оно выглядело привлекательнее для покупателей.`;
-};
-
-const generatePriceSuggestion = async (values: ListingEditFormValues) => {
-  await new Promise((resolve) => window.setTimeout(resolve, 800));
-
-  const currentPrice = Number(values.price || 0);
-
-  if (!currentPrice) {
-    return '100000';
-  }
-
-  return String(Math.round(currentPrice * 1.05));
-};
-
 const ListingEditPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -117,12 +93,25 @@ const ListingEditPage = () => {
   const draftKey = isValidItemId ? getEditDraftKey(itemId) : '';
   const draftWasHandledRef = useRef(false);
 
-  const [descriptionSuggestion, setDescriptionSuggestion] = useState<string | null>(null);
-  const [priceSuggestion, setPriceSuggestion] = useState<string | null>(null);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingPrice, setIsGeneratingPrice] = useState(false);
   const [isPricePopoverOpened, setIsPricePopoverOpened] = useState(false);
   const [isDescriptionPopoverOpened, setIsDescriptionPopoverOpened] = useState(false);
+
+  const descriptionAbortRef = useRef<AbortController | null>(null);
+  const priceAbortRef = useRef<AbortController | null>(null);
+
+  const [descriptionSuggestion, setDescriptionSuggestion] = useState<string | null>(null);
+  const [priceSuggestion, setPriceSuggestion] = useState<{
+    priceRanges: Array<{
+      condition: 'new' | 'good_used' | 'used_with_defects' | 'resale';
+      label: string;
+      min: number;
+      max: number;
+      comment: string;
+    }>;
+    summary: string;
+  } | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['item-edit', itemId],
@@ -246,17 +235,28 @@ const ListingEditPage = () => {
   };
 
   const handleGenerateDescription = async () => {
+    if (isGeneratingDescription) return;
+
     try {
+      const controller = new AbortController();
+      descriptionAbortRef.current = controller;
+
       setIsGeneratingDescription(true);
 
       const values = getValues();
       const mode = values.description.trim() ? 'improve' : 'generate';
-      const result = await debugGenerateDescription(values, mode);
+      const response = await generateAiDescription(values, mode, controller.signal);
 
-      console.log('DESCRIPTION PROMPT RESPONSE:', result);
-      setDescriptionSuggestion(result.prompt.userPrompt);
+      console.log('AI DESCRIPTION PROMPT:', response.prompt);
+      console.log('AI DESCRIPTION RESULT:', response.result);
+
+      setDescriptionSuggestion(response.result.description);
       setIsDescriptionPopoverOpened(true);
     } catch (generationError) {
+      if (axios.isCancel(generationError)) {
+        return;
+      }
+
       notifications.show({
         title: 'Ошибка AI',
         message: getErrorMessage(generationError),
@@ -280,16 +280,27 @@ const ListingEditPage = () => {
   };
 
   const handleGeneratePrice = async () => {
+    if (isGeneratingPrice) return;
+
     try {
+      const controller = new AbortController();
+      priceAbortRef.current = controller;
+
       setIsGeneratingPrice(true);
 
       const values = getValues();
-      const result = await debugGeneratePrice(values);
+      const response = await generateAiPrice(values, controller.signal);
 
-      console.log('PRICE PROMPT RESPONSE:', result);
-      setPriceSuggestion(result.prompt.userPrompt);
+      console.log('AI PRICE PROMPT:', response.prompt);
+      console.log('AI PRICE RESULT:', response.result);
+
+      setPriceSuggestion(response.result);
       setIsPricePopoverOpened(true);
     } catch (generationError) {
+      if (axios.isCancel(generationError)) {
+        return;
+      }
+
       notifications.show({
         title: 'Ошибка AI',
         message: getErrorMessage(generationError),
@@ -298,18 +309,6 @@ const ListingEditPage = () => {
     } finally {
       setIsGeneratingPrice(false);
     }
-  };
-
-  const handleApplyPrice = () => {
-    if (!priceSuggestion) return;
-
-    setValue('price', priceSuggestion, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-
-    setPriceSuggestion(null);
-    setIsPricePopoverOpened(false);
   };
 
   const updateMutation = useMutation({
@@ -353,6 +352,13 @@ const ListingEditPage = () => {
   const onSubmit = (values: ListingEditFormValues) => {
     updateMutation.mutate(values);
   };
+
+  useEffect(() => {
+    return () => {
+      descriptionAbortRef.current?.abort();
+      priceAbortRef.current?.abort();
+    };
+  }, []);
 
   if (!isValidItemId) {
     return (
@@ -404,7 +410,8 @@ const ListingEditPage = () => {
         <div className={styles.container}>
           <div className={styles.backLinkWrapper}>
             <Link to={`/ads/${itemId}`} className={styles.backLink}>
-              К объявлению
+              <IconArrowLeft size={18} color="var(--text-secondary)" />
+              <span>К объявлению</span>
             </Link>
           </div>
 
@@ -457,55 +464,86 @@ const ListingEditPage = () => {
                         error={touchedFields.price ? errors.price?.message : undefined}
                       />
                     </div>
+                    <div>
+                      <Popover
+                        opened={isPricePopoverOpened}
+                        onChange={setIsPricePopoverOpened}
+                        position="top-start"
+                        withArrow
+                        shadow="md"
+                        radius="sm"
+                        width={360}
+                      >
+                        <Popover.Target>
+                          <Button
+                            type="button"
+                            variant="light"
+                            color="#fcdfb6"
+                            onClick={handleGeneratePrice}
+                            loading={isGeneratingPrice}
+                            loaderProps={{ size: 48, color: '#FFA940' }}
+                            className={styles.aiButton}
+                            leftSection={<IconBulb size={16} />}
+                            styles={{
+                              root: { height: '42px' },
+                            }}
+                          >
+                            {priceSuggestion ? 'Повторить запрос' : 'Узнать рыночную цену'}
+                          </Button>
+                        </Popover.Target>
 
-                    <Popover
-                      opened={isPricePopoverOpened}
-                      onChange={setIsPricePopoverOpened}
-                      position="top-start"
-                      withArrow
-                      shadow="md"
-                      radius="sm"
-                      width={360}
-                    >
-                      <Popover.Target>
-                        <Button
-                          type="button"
-                          variant="light"
-                          onClick={handleGeneratePrice}
-                          loading={isGeneratingPrice}
-                          loaderProps={{ size: 48 }}
-                          className={styles.aiButton}
-                        >
-                          {priceSuggestion ? 'Повторить запрос' : 'Узнать рыночную цену'}
-                        </Button>
-                      </Popover.Target>
+                        <Popover.Dropdown className={styles.aiPopover}>
+                          <div className={styles.aiPopoverContent}>
+                            <p className={styles.aiSuggestionTitle}>Ответ AI:</p>
 
-                      <Popover.Dropdown className={styles.aiPopover}>
-                        <div className={styles.aiPopoverContent}>
-                          <p className={styles.aiSuggestionTitle}>Ответ AI:</p>
-                          <p className={styles.aiSuggestionText}>
-                            {priceSuggestion
-                              ? `${Number(priceSuggestion).toLocaleString('ru-RU')} ₽`
-                              : 'Нет данных для отображения.'}
-                          </p>
+                            {priceSuggestion ? (
+                              <>
+                                <div className={styles.priceSuggestionList}>
+                                  {priceSuggestion.priceRanges.map((range) => (
+                                    <div
+                                      key={range.condition}
+                                      className={styles.priceSuggestionItem}
+                                    >
+                                      <p className={styles.priceSuggestionLabel}>{range.label}</p>
+                                      <p className={styles.priceSuggestionRange}>
+                                        {range.min.toLocaleString('ru-RU')} –{' '}
+                                        {range.max.toLocaleString('ru-RU')} ₽
+                                      </p>
+                                      <p className={styles.priceSuggestionComment}>
+                                        {range.comment}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
 
-                          <div className={styles.aiSuggestionActions}>
-                            <Button type="button" size="xs" onClick={handleApplyPrice}>
-                              Применить
-                            </Button>
+                                <p className={styles.aiSuggestionText}>{priceSuggestion.summary}</p>
+                              </>
+                            ) : (
+                              <p className={styles.aiSuggestionText}>Нет данных для отображения.</p>
+                            )}
 
-                            <Button
+                            <div className={styles.aiSuggestionActions}>
+                              {/* <Button
                               type="button"
                               size="xs"
-                              variant="default"
-                              onClick={() => setIsPricePopoverOpened(false)}
+                              onClick={handleApplyPrice}
+                              disabled={!priceSuggestion}
                             >
-                              Закрыть
-                            </Button>
+                              Применить
+                            </Button> */}
+
+                              <Button
+                                type="button"
+                                size="xs"
+                                onClick={() => setIsPricePopoverOpened(false)}
+                              >
+                                Закрыть
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </Popover.Dropdown>
-                    </Popover>
+                        </Popover.Dropdown>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -731,10 +769,16 @@ const ListingEditPage = () => {
                     <Button
                       type="button"
                       variant="light"
-                      size="xs"
+                      size="sm"
+                      color="#fcdfb6"
+                      className={styles.aiButton}
                       onClick={handleGenerateDescription}
                       loading={isGeneratingDescription}
-                      loaderProps={{ size: 48 }}
+                      loaderProps={{ size: 48, color: '#FFA940' }}
+                      leftSection={<IconBulb size={16} />}
+                      styles={{
+                        root: { height: '42px' },
+                      }}
                     >
                       {descriptionValue?.trim() ? 'Улучшить описание' : 'Придумать описание'}
                     </Button>

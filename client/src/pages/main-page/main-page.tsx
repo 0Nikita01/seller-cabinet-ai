@@ -14,7 +14,7 @@ const MainPage = () => {
               <h1 className={styles.title}>Тестовое задание на стажировку в Авито</h1>
 
               <Link to="/ads" className={styles.link}>
-                <Button size="md" radius="md">
+                <Button size="md" radius="md" variant="filled" color="orange">
                   Перейти к объявлениям
                 </Button>
               </Link>
