@@ -247,9 +247,6 @@ const ListingEditPage = () => {
       const mode = values.description.trim() ? 'improve' : 'generate';
       const response = await generateAiDescription(values, mode, controller.signal);
 
-      console.log('AI DESCRIPTION PROMPT:', response.prompt);
-      console.log('AI DESCRIPTION RESULT:', response.result);
-
       setDescriptionSuggestion(response.result.description);
       setIsDescriptionPopoverOpened(true);
     } catch (generationError) {
@@ -290,9 +287,6 @@ const ListingEditPage = () => {
 
       const values = getValues();
       const response = await generateAiPrice(values, controller.signal);
-
-      console.log('AI PRICE PROMPT:', response.prompt);
-      console.log('AI PRICE RESULT:', response.result);
 
       setPriceSuggestion(response.result);
       setIsPricePopoverOpened(true);
